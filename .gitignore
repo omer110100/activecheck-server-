@@ -4,3 +4,6 @@ node_modules/
 !.env.example
 .DS_Store
 Thumbs.db
+
+# Postman collection (published via public link; contains test credentials)
+activecheck.postman_collection.json
