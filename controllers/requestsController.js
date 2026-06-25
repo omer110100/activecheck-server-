@@ -2,6 +2,7 @@ const AssignmentRequest = require('../models/AssignmentRequest');
 const User = require('../models/User');
 const Workout = require('../models/Workout');
 const Measurement = require('../models/Measurement');
+const Program = require('../models/Program');
 
 // Trainee requests a coach
 async function create(req, res) {
@@ -80,4 +81,28 @@ async function myTrainees(req, res) {
   }
 }
 
-module.exports = { create, pending, decide, myTrainees };
+// Coach views a single trainee's full profile (must be their trainee)
+async function traineeProfile(req, res) {
+  try {
+    const trainee = await User.findById(req.params.id);
+    if (!trainee || String(trainee.coachId) !== String(req.user._id)) {
+      return res.status(404).json({ error: 'Trainee not found' });
+    }
+    const workouts = await Workout.find({ traineeId: trainee._id }).sort({ date: -1 });
+    const measurements = await Measurement.find({ traineeId: trainee._id }).sort({ date: 1 });
+    const programs = await Program.find({ traineeId: trainee._id }).sort({ createdAt: -1 });
+    res.json({
+      trainee: {
+        _id: trainee._id, name: trainee.name, gender: trainee.gender,
+        height: trainee.height, yearOfBirth: trainee.yearOfBirth, phone: trainee.phone
+      },
+      workouts: workouts,
+      measurements: measurements,
+      programs: programs
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load trainee profile' });
+  }
+}
+
+module.exports = { create, pending, decide, myTrainees, traineeProfile };

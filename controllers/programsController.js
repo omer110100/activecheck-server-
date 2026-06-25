@@ -1,4 +1,5 @@
 const Program = require('../models/Program');
+const User = require('../models/User');
 
 // A program can be managed by the trainee it belongs to,
 // or by the coach who created it.
@@ -10,14 +11,21 @@ function canManage(program, user) {
 
 async function list(req, res) {
   try {
-    let filter;
     if (req.user.role === 'coach') {
-      filter = { coachId: req.user._id };
+      const filter = { coachId: req.user._id };
       if (req.query.traineeId) filter.traineeId = req.query.traineeId;
-    } else {
-      filter = { traineeId: req.user._id };
+      const programs = await Program.find(filter).sort({ createdAt: -1 });
+      // attach each program's trainee name for display
+      const out = [];
+      for (const p of programs) {
+        const t = await User.findById(p.traineeId);
+        const obj = p.toObject();
+        obj.traineeName = t ? t.name : 'Unknown';
+        out.push(obj);
+      }
+      return res.json({ programs: out });
     }
-    const programs = await Program.find(filter).sort({ createdAt: -1 });
+    const programs = await Program.find({ traineeId: req.user._id }).sort({ createdAt: -1 });
     res.json({ programs });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load programs' });

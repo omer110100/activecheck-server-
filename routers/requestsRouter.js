@@ -8,6 +8,7 @@ router.use(requireAuth);
 router.post('/', ctrl.create);
 router.get('/pending', requireCoach, ctrl.pending);
 router.get('/my-trainees', requireCoach, ctrl.myTrainees);
+router.get('/trainee/:id', requireCoach, ctrl.traineeProfile);
 router.put('/:id', requireCoach, ctrl.decide);
 
 module.exports = router;
