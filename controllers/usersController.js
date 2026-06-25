@@ -10,7 +10,7 @@ function publicUser(u) {
   return {
     _id: u._id, name: u.name, email: u.email, role: u.role,
     gender: u.gender, height: u.height, yearOfBirth: u.yearOfBirth,
-    phone: u.phone, coachId: u.coachId
+    phone: u.phone, bio: u.bio, coachId: u.coachId
   };
 }
 
@@ -68,10 +68,10 @@ async function me(req, res) {
 
 async function updateMe(req, res) {
   try {
-    const { name, gender, height, yearOfBirth, phone } = req.body;
+    const { name, gender, height, yearOfBirth, phone, bio } = req.body;
     const updated = await User.findByIdAndUpdate(
       req.user._id,
-      { name, gender, height, yearOfBirth, phone },
+      { name, gender, height, yearOfBirth, phone, bio },
       { new: true }
     );
     res.json({ user: publicUser(updated) });

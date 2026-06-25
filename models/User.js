@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
   height: { type: Number, default: null },
   yearOfBirth: { type: Number, default: null },
   phone: { type: String, default: '' },
+  bio: { type: String, default: '' },
   coachId: { type: mongoose.Schema.Types.ObjectId, default: null },
   token: { type: String, default: null },
   createdAt: { type: Date, default: Date.now }
