@@ -13,6 +13,8 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
+app.use('/api/users', require('./routers/usersRouter'));
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
