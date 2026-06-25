@@ -1,11 +1,22 @@
 const Program = require('../models/Program');
 
+// A program can be managed by the trainee it belongs to,
+// or by the coach who created it.
+function canManage(program, user) {
+  if (String(program.traineeId) === String(user._id)) return true;
+  if (program.coachId && String(program.coachId) === String(user._id)) return true;
+  return false;
+}
+
 async function list(req, res) {
   try {
-    const filter = req.user.role === 'coach'
-      ? { coachId: req.user._id }
-      : { traineeId: req.user._id };
-    if (req.query.traineeId) filter.traineeId = req.query.traineeId;
+    let filter;
+    if (req.user.role === 'coach') {
+      filter = { coachId: req.user._id };
+      if (req.query.traineeId) filter.traineeId = req.query.traineeId;
+    } else {
+      filter = { traineeId: req.user._id };
+    }
     const programs = await Program.find(filter).sort({ createdAt: -1 });
     res.json({ programs });
   } catch (err) {
@@ -15,13 +26,30 @@ async function list(req, res) {
 
 async function create(req, res) {
   try {
-    const { traineeId, title, items } = req.body;
-    if (!traineeId || !title) {
-      return res.status(400).json({ error: 'traineeId and title required' });
+    const { title, sessionsPerWeek, items, traineeId } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'Program name is required' });
     }
-    const program = await Program.create({
-      coachId: req.user._id, traineeId, title, items: items || []
-    });
+
+    const doc = {
+      title: title,
+      sessionsPerWeek: sessionsPerWeek || 0,
+      items: items || []
+    };
+
+    if (req.user.role === 'coach') {
+      if (!traineeId) {
+        return res.status(400).json({ error: 'traineeId is required' });
+      }
+      doc.traineeId = traineeId;
+      doc.coachId = req.user._id;
+    } else {
+      // trainee creates their own program
+      doc.traineeId = req.user._id;
+      doc.coachId = req.user.coachId || null;
+    }
+
+    const program = await Program.create(doc);
     res.status(201).json({ program });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create program' });
@@ -31,12 +59,15 @@ async function create(req, res) {
 async function update(req, res) {
   try {
     const existing = await Program.findById(req.params.id);
-    if (!existing || String(existing.coachId) !== String(req.user._id)) {
+    if (!existing || !canManage(existing, req.user)) {
       return res.status(404).json({ error: 'Program not found' });
     }
-    const { title, items } = req.body;
+    const { title, sessionsPerWeek, items } = req.body;
     const program = await Program.findByIdAndUpdate(
-      req.params.id, { title, items }, { new: true });
+      req.params.id,
+      { title, sessionsPerWeek, items },
+      { new: true }
+    );
     res.json({ program });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update program' });
@@ -46,7 +77,7 @@ async function update(req, res) {
 async function remove(req, res) {
   try {
     const existing = await Program.findById(req.params.id);
-    if (!existing || String(existing.coachId) !== String(req.user._id)) {
+    if (!existing || !canManage(existing, req.user)) {
       return res.status(404).json({ error: 'Program not found' });
     }
     await Program.findByIdAndDelete(req.params.id);
