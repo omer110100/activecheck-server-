@@ -14,6 +14,10 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/users', require('./routers/usersRouter'));
+app.use('/api/workouts', require('./routers/workoutsRouter'));
+app.use('/api/measurements', require('./routers/measurementsRouter'));
+app.use('/api/requests', require('./routers/requestsRouter'));
+app.use('/api/programs', require('./routers/programsRouter'));
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
