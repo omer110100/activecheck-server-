@@ -1,0 +1,83 @@
+const AssignmentRequest = require('../models/AssignmentRequest');
+const User = require('../models/User');
+const Workout = require('../models/Workout');
+const Measurement = require('../models/Measurement');
+
+// Trainee requests a coach
+async function create(req, res) {
+  try {
+    const { coachId } = req.body;
+    if (!coachId) return res.status(400).json({ error: 'coachId required' });
+    const existing = await AssignmentRequest.find({
+      traineeId: req.user._id, coachId, status: 'pending'
+    });
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Request already pending' });
+    }
+    const request = await AssignmentRequest.create({ traineeId: req.user._id, coachId });
+    res.status(201).json({ request });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create request' });
+  }
+}
+
+// Coach: pending requests (with trainee name)
+async function pending(req, res) {
+  try {
+    const requests = await AssignmentRequest.find({ coachId: req.user._id, status: 'pending' });
+    const out = [];
+    for (const r of requests) {
+      const trainee = await User.findById(r.traineeId);
+      out.push({
+        _id: r._id, requestedAt: r.requestedAt,
+        trainee: trainee ? { _id: trainee._id, name: trainee.name } : null
+      });
+    }
+    res.json({ requests: out });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load requests' });
+  }
+}
+
+// Coach: approve/reject. On approve, set trainee.coachId
+async function decide(req, res) {
+  try {
+    const { status } = req.body; // 'approved' | 'rejected'
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    const request = await AssignmentRequest.findById(req.params.id);
+    if (!request || String(request.coachId) !== String(req.user._id)) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    await AssignmentRequest.findByIdAndUpdate(req.params.id, { status });
+    if (status === 'approved') {
+      await User.findByIdAndUpdate(request.traineeId, { coachId: req.user._id });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update request' });
+  }
+}
+
+// Complex query #2: coach's trainees + each one's latest workout/weight (manual join)
+async function myTrainees(req, res) {
+  try {
+    const trainees = await User.find({ coachId: req.user._id, role: 'trainee' });
+    const out = [];
+    for (const t of trainees) {
+      const workouts = await Workout.find({ traineeId: t._id }).sort({ date: -1 });
+      const measurements = await Measurement.find({ traineeId: t._id }).sort({ date: -1 });
+      out.push({
+        _id: t._id, name: t.name,
+        lastWorkout: workouts.length ? workouts[0].date : null,
+        currentWeight: measurements.length ? measurements[0].weightKg : null
+      });
+    }
+    res.json({ trainees: out });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load trainees' });
+  }
+}
+
+module.exports = { create, pending, decide, myTrainees };
