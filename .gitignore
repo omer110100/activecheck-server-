@@ -7,3 +7,6 @@ Thumbs.db
 
 # Postman collection (published via public link; contains test credentials)
 activecheck.postman_collection.json
+
+# local demo seed script (not part of the deployed app)
+seed.js

@@ -105,4 +105,33 @@ async function traineeProfile(req, res) {
   }
 }
 
-module.exports = { create, pending, decide, myTrainees, traineeProfile };
+// Trainee: their own assignment requests (so the UI can reflect state)
+async function mine(req, res) {
+  try {
+    const requests = await AssignmentRequest.find({ traineeId: req.user._id });
+    res.json({ requests });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load your requests' });
+  }
+}
+
+// Coach: remove (unassign) one of their trainees
+async function removeTrainee(req, res) {
+  try {
+    const trainee = await User.findById(req.params.id);
+    if (!trainee || String(trainee.coachId) !== String(req.user._id)) {
+      return res.status(404).json({ error: 'Trainee not found' });
+    }
+    await User.findByIdAndUpdate(trainee._id, { coachId: null });
+    // remove the assignment request(s) between them so the relationship resets
+    const reqs = await AssignmentRequest.find({ traineeId: trainee._id, coachId: req.user._id });
+    for (const r of reqs) {
+      await AssignmentRequest.findByIdAndDelete(r._id);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove trainee' });
+  }
+}
+
+module.exports = { create, pending, decide, myTrainees, traineeProfile, mine, removeTrainee };
